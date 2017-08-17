@@ -14,6 +14,7 @@
 
 //Constants
 #define FAN_TIMEOUT   120000  //Keep fan running 2 extra minutes
+#define SLEEP_TIME    300000  //Check in every 5 minutes
 
 /*
  * Lower and upper temperature thresholds in Centigrade
@@ -30,8 +31,17 @@
 //                     0  1   2   3   4   5   6
 int LoThreshDegC[] = {12, 7,  7,  9, 13, 15, 16};
 int HiThreshDegC[] = {13, 8, 10, 11, 16, 16, 18};
-int WineType = 0;   //Index for threshold temperatures, per chart above
+int PrepTimeMins[] = {0, 30, 30, 30, 30, 30, 30};
+int WineType = 1;   //Index for threshold temperatures, per chart above (1-5)
+int WineMode = 0;   //Index for running type - Serve (0) or WineType
 double WineTemp;    //Current temperature, as read by TMP36
+
+/*
+ *
+ */
+int currentTimeMinutes;
+int serveTimeMinutes;
+int serveDurationMinutes;
 
 /*
  * FanOff()
@@ -89,11 +99,31 @@ void ChillerOff()
 /*
  * SetWineType()
  * Function cloud to change wine type for temperature management
+ * Value contrained from 1 to 5
  */
 int SetWineType(String type)
 {
-  WineType = type.toInt();
+  WineType = constrain(type.toInt(), 1, 5);
   return 0;
+}
+
+/*
+ * SetWineServeTime()
+ * Sets the desired time to enjoy the wine
+ * (serve temperature != store temperature)
+ * Includes duration of serving window
+ * ex. 1050_120 indicates a time of 17:30 for 2 hours
+ * 17*60 + 30 = 1050, 2*60 = 120
+ */
+int SetWineServeTime(String time_duration)
+{
+  int delim = time_duration.indexOf('_');
+  serveTimeMinutes = time_duration.substring(0,delim).toInt();
+  serveDurationMinutes = time_duration.substring(delim+1).toInt();
+  if(serveTimeMinutes != 0 && serveDurationMinutes !=0)
+    return 0;
+  else
+    return -1;
 }
 
 void setup()
@@ -107,11 +137,28 @@ void setup()
   Particle.variable("WineTemp", WineTemp);
   Particle.variable("WineType", WineType);
   Particle.function("SetWineType", SetWineType);
+  Particle.function("SetWineTime", SetWineServeTime);
 }
 
 void loop()
 {
-  if(WineType == 0)
+  //Get the time and temperature
+  currentTimeMinutes = Time.hour() * 60 + Time.minute();
+  WineTemp = ReadTempDegC(PIN_TMP36);
+
+  //If it's preperation time, swap to desired temperature range
+  if( WineMode == 0 && ((currentTimeMinutes - PrepTimeMins[WineType]) >= serveTimeMinutes) && (currentTimeMinutes < (serveTimeMinutes + serveDurationMinutes)))
+  {
+    WineMode = WineType;
+  }
+  //If we've passed serving time, set back to storage temperature range
+  if( WineMode != 0 && (currentTimeMinutes >= (serveTimeMinutes + serveDurationMinutes)))
+  {
+    WineMode = 0;
+  }
+
+  //If we're in serving temperature, indicate LED
+  if((WineMode != 0) && (WineTemp >= LoThreshDegC[WineMode]) && (WineTemp <= HiThreshDegC[WineMode]))
   {
       digitalWrite(PIN_STATUS_SERVE, HIGH);
   }
@@ -119,13 +166,20 @@ void loop()
   {
       digitalWrite(PIN_STATUS_SERVE, LOW);
   }
-  WineTemp = ReadTempDegC(PIN_TMP36);
+
+  //Turn off chiller once we've gone under low threshold
+  //It's too cold!
   if(WineTemp < LoThreshDegC[WineType])
   {
       ChillerOff();
   }
+  //Turn on chiller once we've gone above high threshold
+  //It's too hot!
   if(WineTemp > HiThreshDegC[WineType])
   {
       ChillerOn();
   }
+
+  //Check in later
+  System.sleep(SLEEP_TIME);
 }
