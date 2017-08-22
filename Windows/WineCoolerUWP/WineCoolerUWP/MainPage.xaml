@@ -9,31 +9,61 @@
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Pivot Title="WineCooler">
-            <PivotItem Header="Fridge">
+            <PivotItem Header="Fridge" x:Name="pvtFridge">
                 <Grid>
-                    <ComboBox x:Name="cboWineType" HorizontalAlignment="Left" Margin="55,212,0,0" VerticalAlignment="Top" Width="242"/>
-                    <TimePicker x:Name="timePicker" HorizontalAlignment="Left" Margin="55,86,0,0" VerticalAlignment="Top" Time="17:30:0"/>
-                    <ComboBox x:Name="cboDuration" HorizontalAlignment="Left" Margin="55,148,0,0" VerticalAlignment="Top" Width="123"/>
-                    <TextBlock x:Name="textBlock" HorizontalAlignment="Left" Margin="55,61,0,0" TextWrapping="Wrap" Text="Serving Time" VerticalAlignment="Top" Width="123"/>
-                    <TextBlock x:Name="textBlock_Copy" HorizontalAlignment="Left" Margin="55,128,0,0" TextWrapping="Wrap" Text="Serving Duration" VerticalAlignment="Top" Width="123"/>
-                    <TextBlock x:Name="textBlock_Copy1" HorizontalAlignment="Left" Margin="55,192,0,0" TextWrapping="Wrap" Text="Wine Type" VerticalAlignment="Top" Width="123"/>
-                    <TextBlock x:Name="textBlock_Copy2" HorizontalAlignment="Left" Margin="183,153,0,0" TextWrapping="Wrap" Text="hours" VerticalAlignment="Top" Width="114"/>
-                    <Button x:Name="btnWineSetup" Content="Apply" HorizontalAlignment="Left" Margin="130,282,0,0" VerticalAlignment="Top" Width="88" Click="btnWineSetup_Click"/>
-                    <TextBlock x:Name="lblTemperature" HorizontalAlignment="Left" Margin="55,359,0,0" TextWrapping="Wrap" Text="Temperature:" VerticalAlignment="Top" Width="123"/>
-                    <Button x:Name="btnRefreshTemp" Content="Refresh" HorizontalAlignment="Left" Margin="209,353,0,0" VerticalAlignment="Top" Width="88" Click="btnRefreshTemp_Click"/>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="20" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="20" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="20"/>
+                    </Grid.ColumnDefinitions>
+                    <RelativePanel  Grid.Row="1" Grid.Column="1">
+                        <!--dummy to eliminate relative align circular logic -->
+                        <Rectangle x:Name="rect" MinWidth="200" RelativePanel.AlignHorizontalCenterWithPanel="True"/>                        
+                        <TextBlock x:Name="lblMessage" Text="Welcome to WineCooler" RelativePanel.AlignTopWithPanel="True" Margin="0,0,0,0" RelativePanel.AlignHorizontalCenterWithPanel="True"/>
+                        <TextBlock x:Name="lblMode" Text="System Mode"  RelativePanel.Below="lblMessage" RelativePanel.AlignLeftWith="rect" Margin="0,20,0,5"/>
+                        <ComboBox x:Name="cboMode" RelativePanel.Below="lblMode" RelativePanel.AlignLeftWith="rect" MinWidth="200" SelectionChanged="cboMode_SelectionChanged"/>
+                        <TextBlock x:Name="lblServing" Text="Serving Time" RelativePanel.Below="cboMode" RelativePanel.AlignLeftWith="rect" Margin="0,20,0,5"/>
+                        <TimePicker x:Name="timePicker"  Time="17:30:0" RelativePanel.Below="lblServing" RelativePanel.AlignHorizontalCenterWithPanel="True" MinWidth="200" />
+                        <TextBlock x:Name="lblDuration" Text="Serving Duration" RelativePanel.AlignLeftWith="rect" RelativePanel.Below="timePicker" Margin="0,20,0,5"/>
+                        <ComboBox x:Name="cboDuration" RelativePanel.Below="lblDuration" RelativePanel.AlignLeftWith="rect" MinWidth="100"/>
+                        <TextBlock x:Name="lblHours" Text="hours" RelativePanel.RightOf="cboDuration" RelativePanel.Below="lblDuration"/>
+                        <TextBlock x:Name="lblWineType" Text="Wine Type" RelativePanel.AlignLeftWith="rect" RelativePanel.Below="cboDuration" Margin="0,20,0,5"/>
+                        <ComboBox x:Name="cboWineType" RelativePanel.Below="lblWineType" RelativePanel.AlignLeftWith="rect" MinWidth="200"/>
+                        <Button x:Name="btnWineSetup" Content="Apply" MinWidth="75" Click="btnWineSetup_Click" RelativePanel.Below="cboWineType" Margin="0,20,0,5" RelativePanel.AlignHorizontalCenterWithPanel="True"/>
+                        <TextBlock x:Name="lblTemperature" Text="Temperature:" Margin="10,10,50,10" RelativePanel.Below="btnWineSetup" RelativePanel.AlignLeftWith="rect"/>
+                    </RelativePanel>
                 </Grid>
             </PivotItem>
 
             <PivotItem Header="Particle">
                 <Grid>
-                    <TextBox x:Name="txtUserName" HorizontalAlignment="Left" Margin="10,42,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="316"/>
-                    <Button x:Name="btnLogin" Content="Login" HorizontalAlignment="Left" Margin="136,161,0,0" VerticalAlignment="Top" Click="btnLogin_Click"/>
-                    <PasswordBox x:Name="txtPassword" HorizontalAlignment="Left" Margin="10,99,0,0" VerticalAlignment="Top" Width="316"/>
-                    <TextBlock x:Name="lblUser" HorizontalAlignment="Left" Margin="12,17,0,0" TextWrapping="Wrap" Text="Username" VerticalAlignment="Top" Width="71"/>
-                    <TextBlock x:Name="lblPassword" HorizontalAlignment="Left" Margin="12,79,0,0" TextWrapping="Wrap" Text="Password" VerticalAlignment="Top"/>
-                    <TextBlock x:Name="lblDevice" HorizontalAlignment="Left" Margin="12,232,0,0" TextWrapping="Wrap" Text="Device" VerticalAlignment="Top" Width="71"/>
-                    <Button x:Name="btnDevice" Content="Set" HorizontalAlignment="Left" Margin="136,323,0,0" VerticalAlignment="Top" Width="57" Click="btnDevice_Click"/>
-                    <ComboBox x:Name="cboDevice" HorizontalAlignment="Left" Margin="12,257,0,0" VerticalAlignment="Top" Width="314"/>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="20" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="20" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="20"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="20"/>
+                    </Grid.ColumnDefinitions>
+                    <RelativePanel  Grid.Row="1" Grid.Column="1">
+                        <!--dummy to eliminate relative align circular logic -->
+                        <Rectangle x:Name="rect1" MinWidth="250" RelativePanel.AlignHorizontalCenterWithPanel="True"/>
+                        <TextBlock x:Name="lblUser" Margin="0,20,0,5" Text="Username" RelativePanel.AlignTopWithPanel="True" RelativePanel.AlignLeftWith="rect1"/>
+                        <TextBox x:Name="txtUserName" MinWidth="250" RelativePanel.AlignHorizontalCenterWithPanel="True" RelativePanel.Below="lblUser"/>
+                        <TextBlock x:Name="lblPassword" Margin="0,20,0,5" Text="Password" RelativePanel.Below="txtUserName" RelativePanel.AlignLeftWith="rect1"/>
+                        <PasswordBox x:Name="txtPassword" MinWidth="250" RelativePanel.AlignHorizontalCenterWithPanel="True" RelativePanel.Below="lblPassword"/>
+                        <Button x:Name="btnLogin" MinWidth="75"  Margin="0,20,0,5" Content="Login" Click="btnLogin_Click" RelativePanel.AlignHorizontalCenterWithPanel="True" RelativePanel.Below="txtPassword"/>
+                        <TextBlock x:Name="lblDevice" Margin="0,20,0,5" Text="Device"  RelativePanel.Below="btnLogin" RelativePanel.AlignLeftWith="rect1"/>
+                        <ComboBox x:Name="cboDevice" MinWidth="250" RelativePanel.AlignHorizontalCenterWithPanel="True" RelativePanel.Below="lblDevice"/>
+                        <Button x:Name="btnDevice" Content="Set" Click="btnDevice_Click" MinWidth="75"  Margin="0,20,0,5" RelativePanel.AlignHorizontalCenterWithPanel="True" RelativePanel.Below="cboDevice"/>
+                    </RelativePanel>
                 </Grid>
             </PivotItem>
         </Pivot>
