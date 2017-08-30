@@ -4,20 +4,21 @@
  */
 
 #include "application.h"
+#include "chiller.h"
 
 //Pin definitions
 #define PIN_TMP36           A0   //Analog Temperature Sensor TMP36
-#define PIN_CHILL           D3   //Relay for activating Peltier
-#define PIN_FAN             D4   //Relay for activating Fan (Peltier heatsink)
+#define PIN_CHILL           D3   //Relay for activating Peltier + heatsink fan
+#define PIN_FAN             D4   //Relay for activating circulation fan inside fridge
 #define PIN_STATUS_CHILL    D0   //LED status of Chiller
 #define PIN_STATUS_SERVE    D1   //LED status of ready-to-serve
 
 //Constants
 #define TIME_CHECK_IN   120000  //Let the chiller run 2 mins
-#define SYSMODE_SCHEDULE     0
-#define SYSMODE_STORE        1
-#define SYSMODE_SERVE        2
-#define SYSMODE_OFF          4
+#define SYSMODE_SCHEDULE     0  //Check time and prepare wine for serving temperature
+#define SYSMODE_STORE        1  //Store wine at 55F
+#define SYSMODE_SERVE        2  //Serve wine at specified temps per wine
+#define SYSMODE_OFF          4  //Turn chiller off
 
 /*
  * Lower and upper temperature thresholds in Centigrade
@@ -35,90 +36,49 @@
 const int LoThreshDegC[] = {12, 7,  7,  9, 13, 15, 16};
 const int HiThreshDegC[] = {13, 8, 10, 11, 16, 16, 18};
 const int PrepTimeMins[] = {0, 30, 30, 30, 30, 30, 30};
-int WineType = 4;       //Index for threshold temperatures, per chart above (1-5)
 int setpointIndex = 0;  //Index for running type - Serve (0) or WineType
+int WineType = 4;       //Index for threshold temperatures, per chart above (1-6)
 double WineTemp;        //Current temperature, as read by TMP36
 int sysMode = 0;        //System mode - schedule, store, serve, off
 bool serveBlink = false;
+
 /*
- *
+ * Our wine cooler class to manage fans, setpoints, etc
  */
-int currentTimeMinutes;
+WineChiller wineFridge(PIN_CHILL, PIN_FAN, PIN_TMP36, HiThreshDegC[0], LoThreshDegC[0]);
+
+/*
+ * Timing variables
+ */
+int currentTimeMinutes;         //Current time of day, expresssed as total minutes
 int serveTimeMinutes = 1020;    //Default time 5pm (17*60)
 int serveDurationMinutes = 120; //Default serve for 2 hours
-long lastCheckIn = 0;
-
-/*
- * FanOff()
- * Turns the fan relay off shortly after Peltier is deactivated
- *
-void FanOff()
-{
-  digitalWrite(PIN_FAN, LOW);
-}
-Timer t_Fan(FAN_TIMEOUT, FanOff);*/
-
-/*
- * ReadTempDegC()
- * Reads the given Pin and returns the temperature
- * in Centigrade
- * modeled from Adafruit's TMP36 tutorial
- * https://learn.adafruit.com/tmp36-temperature-sensor
- */
-double ReadTempDegC(int pin)
-{
-  int read = analogRead(pin);
-  double volts = read * 3.3 / 4096.0;    //3.3v ref voltage, 12bit resolution ADC
-  double degreesC = (volts - 0.5) * 100.0;
-  return degreesC;
-}
-
-/*
- *
- */
-void ChillerOn()
-{
-  //Peltier On
-  digitalWrite(PIN_CHILL, HIGH);
-  //Heatsink fans on
-  digitalWrite(PIN_FAN, HIGH);
-  //Status light on
-  digitalWrite(PIN_STATUS_CHILL, HIGH);
-}
-
-/*
- *
- */
-void ChillerOff()
-{
-  //Peltier Off
-  digitalWrite(PIN_CHILL, LOW);
-  //Fans off
-  digitalWrite(PIN_FAN, LOW);
-  //Status light off
-  digitalWrite(PIN_STATUS_CHILL, LOW);
-}
+long lastCheckIn = 0;           //millis() counter for checking wine every interval
 
 /*
  * SetWineType()
- * Function cloud to change wine type for temperature management
- * Value contrained from 1 to 5
+ * Cloud function to change wine type for temperature management
+ * Value contrained from 1 to 6
+ *
+ * Returns an integer representing the wine type
  */
 int SetWineType(String type)
 {
-  WineType = constrain(type.toInt(), 1, 5);
-  return 0;
+  WineType = constrain(type.toInt(), 1, 6);
+  return WineType;
 }
 
 /*
  * SetSysMode()
- * Function cloud to change wine type for temperature management
- * Value contrained from 1 to 5
+ * Cloud function to update the chiller's running mode
+ * Value contrained from 0 to 4
+ *
+ * Returns integer for which zone
  */
 int SetSysMode(String args)
 {
   sysMode = constrain(args.toInt(), 0, 4);
-  return 0;
+  return sysMode;
 }
 
 /*
@@ -128,6 +88,8 @@ int SetSysMode(String args)
  * Includes duration of serving window
  * ex. 1050_120 indicates a time of 17:30 for 2 hours
  * 17*60 + 30 = 1050, 2*60 = 120
+ *
+ * Returns the serve time expressed as total minutes
  */
 int SetWineServeTime(String time_duration)
 {
@@ -135,11 +97,27 @@ int SetWineServeTime(String time_duration)
   serveTimeMinutes = time_duration.substring(0,delim).toInt();
   serveDurationMinutes = time_duration.substring(delim+1).toInt();
   if(serveTimeMinutes != 0 && serveDurationMinutes !=0)
-    return 0;
+    return serveTimeMinutes;
   else
     return -1;
 }
 
+/*
+ * SetTimeZone()
+ * Set the time zone for the controller for localization
+ *
+ * Returns the current time (adjusted by zone)
+ */
+int SetTimeZone(String zone)
+{
+    Time.zone(constrain(zone.toInt(), -12, 14));
+    return ((Time.hour() * 60) + Time.minute());
+}
+
+/*
+ * setup()
+ * Set pin modes, expose functions and variable to cloud, init system
+ */
 void setup()
 {
   //Pin modes
@@ -147,52 +125,80 @@ void setup()
   pinMode(PIN_FAN, OUTPUT);
   pinMode(PIN_STATUS_SERVE, OUTPUT);
   pinMode(PIN_STATUS_CHILL, OUTPUT);
-  //Cloud functions
+  //Cloud variables
   Particle.variable("WineTemp", WineTemp);
   Particle.variable("WineType", WineType);
   Particle.variable("SysMode", sysMode);
   Particle.variable("ClockMins", currentTimeMinutes);
   Particle.variable("ServeMins", serveTimeMinutes);
   Particle.variable("ServeDur", serveDurationMinutes);
-
+  //Cloud functions
   Particle.function("SetSysMode", SetSysMode);
   Particle.function("SetWineType", SetWineType);
   Particle.function("SetWineTime", SetWineServeTime);
+  Particle.function("SetTimeZone", SetTimeZone);
+
+  //I'm in Central DST at time of coding
+  Time.zone(-5);
+
+  //turn system on
+  wineFridge.UpdatePower(true);
 }
 
+/*
+ * loop()
+ * Check in every cycle and process how to handle the wine based on scheduled mode
+ *
+ */
 void loop()
 {
   //Get the time
   currentTimeMinutes = (Time.hour() * 60) + Time.minute();
+  switch (sysMode)
+  {
+      case SYSMODE_SCHEDULE:
+        //If it's preperation time, swap to new desired temperature range
+        if((currentTimeMinutes >= (serveTimeMinutes - PrepTimeMins[WineType])) && setpointIndex == 0)
+        {
+            setpointIndex = WineType;
+        }
+        //If we've passed serving time, set back to storage temperature range
+        if((currentTimeMinutes >= (serveTimeMinutes + serveDurationMinutes)) && setpointIndex != 0)
+        {
+            setpointIndex = 0;
+        }
+        wineFridge.UpdateSP(HiThreshDegC[setpointIndex], LoThreshDegC[setpointIndex]);
+        wineFridge.UpdatePower(true);
+        break;
 
-  if(sysMode == SYSMODE_SCHEDULE)
-  {
-      //If it's preperation time, swap to new desired temperature range
-      if(((currentTimeMinutes - PrepTimeMins[WineType]) >= serveTimeMinutes) && setpointIndex == 0)
-      {
-        setpointIndex = WineType;
-      }
-      //If we've passed serving time, set back to storage temperature range
-      if((currentTimeMinutes >= (serveTimeMinutes + serveDurationMinutes)) && setpointIndex != 0)
-      {
+      case SYSMODE_STORE:
         setpointIndex = 0;
-      }
+        wineFridge.UpdateSP(HiThreshDegC[setpointIndex], LoThreshDegC[setpointIndex]);
+        wineFridge.UpdatePower(true);
+        break;
+
+      case SYSMODE_SERVE:
+        setpointIndex = WineType;
+        wineFridge.UpdateSP(HiThreshDegC[setpointIndex], LoThreshDegC[setpointIndex]);
+        wineFridge.UpdatePower(true);
+        break;
+
+      case SYSMODE_OFF:
+        wineFridge.UpdatePower(false);
+        break;
   }
-  if(sysMode == SYSMODE_STORE)
+
+  //Evaluate chiller logic every couple of minutes
+  if(millis() > lastCheckIn + TIME_CHECK_IN )
   {
-      setpointIndex = 0;
+      WineTemp = wineFridge.Update();
+      lastCheckIn = millis();
   }
-  if(sysMode == SYSMODE_SERVE)
-  {
-      setpointIndex = WineType;
-  }
-  if(sysMode == SYSMODE_OFF)
-  {
-      ChillerOff();
-      delay(1000);
-      return;
-  }
-  //If we're in serving temperature, indicate LED
+
+  //Take a break
+  delay(200);
+
+  /*/If we're in serving temperature, indicate LED
   if((setpointIndex != 0) && (WineTemp >= LoThreshDegC[setpointIndex]) && (WineTemp <= HiThreshDegC[setpointIndex]))
   {
       digitalWrite(PIN_STATUS_SERVE, HIGH);
@@ -205,31 +211,5 @@ void loop()
   else
   {
       digitalWrite(PIN_STATUS_SERVE, LOW);
-  }
-
-  //Evaluate chiller logic every couple of minutes
-  if(millis() > lastCheckIn + TIME_CHECK_IN )
-  {
-      //Temperature reads only stable if chiller is off
-      ChillerOff();
-      delay(50);
-      WineTemp = ReadTempDegC(PIN_TMP36);
-
-      //Turn off chiller once we've gone under low threshold
-      //It's too cold!
-      if(WineTemp < LoThreshDegC[setpointIndex])
-      {
-          ChillerOff();
-      }
-      //Turn on chiller once we've gone above high threshold
-      //It's too hot!
-      if(WineTemp > HiThreshDegC[setpointIndex])
-      {
-          ChillerOn();
-      }
-      lastCheckIn = millis();
-  }
-
-  //Take a break
-  delay(200);
+  }*/
 }
