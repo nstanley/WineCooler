@@ -34,7 +34,6 @@ namespace WineCoolerUWP
         
         public MainPage()
         {
-            this.InitializeComponent();
 
             //Setup our manager and watch for events
             wineFridge = new WineManager(Dispatcher);
@@ -44,8 +43,19 @@ namespace WineCoolerUWP
             wineFridge.ExceptionEvent += new Action<Exception>(ShowException);
             wineFridge.SystemModeEvent += new Action<int>(UpdateSystemMode);
             wineFridge.DeviceChosenEvent += new Action<string>(UpdateDevice);
+            wineFridge.ClockEvent += new Action<int>(UpdateClock);
+            wineFridge.MessageEvent += new Action<string>(UpdateMessage);
 
+            this.InitializeComponent();
             pvtFridge.IsEnabled = false;
+
+            /*
+            Binding messsageBind = new Binding();
+            messsageBind.Path = new PropertyPath("message");
+            messsageBind.Mode = BindingMode.OneWay;
+            messsageBind.Source = wineFridge;
+            lblMessage.SetBinding(TextBlock.TextProperty, messsageBind);
+            */
 
             //ParticleCloud.SharedCloud.SynchronizationContext = System.Threading.SynchronizationContext.Current;
             
@@ -69,6 +79,11 @@ namespace WineCoolerUWP
                 cboMode.Items.Add(wineFridge.listModes[i]);
             }
             //cboMode.SelectedItem = cboMode.Items[0];
+
+            for(int i = -12; i <= 14; ++i)
+            {
+                cboTime.Items.Add(i);
+            }
         }
 
         #region WineManager Events
@@ -80,6 +95,10 @@ namespace WineCoolerUWP
             txtPassword.Password = wineFridge.loginPass;
         }
 
+        private void UpdateMessage(string s)
+        {
+            lblMessage.Text = s;
+        }
         private void UpdateTemperature(double temp)
         {
             lblTemperature.Text = "Temperature: " + Math.Round(temp, 2).ToString() + "°C";
@@ -102,6 +121,16 @@ namespace WineCoolerUWP
         private void UpdateSystemMode(int mode)
         {
             cboMode.SelectedIndex = mode;
+            if(mode == 0)
+            {
+                cboDuration.IsEnabled = true;
+                timePicker.IsEnabled = true;
+            }
+            else
+            {
+                cboDuration.IsEnabled = false;
+                timePicker.IsEnabled = false;
+            }
         }
 
         
@@ -109,7 +138,28 @@ namespace WineCoolerUWP
         {
             pvtFridge.IsEnabled = true;
             cboDevice.SelectedIndex = cboDevice.Items.IndexOf(name);
+            cboWineType.SelectedIndex = wineFridge.wineType - 1;
+            cboMode.SelectedIndex = wineFridge.systemMode;
+            cboDuration.SelectedIndex = (wineFridge.serveDuration / 60) - 1;
+            timePicker.Time = new TimeSpan(0, wineFridge.serveMinutes,0);
+            txtTime.Text = new TimeSpan(0, wineFridge.clockMinutes, 0).ToString(@"hh\:mm");
+            if (wineFridge.systemMode == 0)
+            {
+                cboDuration.IsEnabled = true;
+                timePicker.IsEnabled = true;
+            }
+            else
+            {
+                cboDuration.IsEnabled = false;
+                timePicker.IsEnabled = false;
+            }
         }
+
+        private void UpdateClock(int totalMinutes)
+        {
+            txtTime.Text = new TimeSpan(0, totalMinutes, 0).ToString(@"hh\:mm");
+        }
+
         #endregion
 
         #region Button Events
@@ -125,16 +175,57 @@ namespace WineCoolerUWP
 
         private void btnWineSetup_Click(object sender, RoutedEventArgs e)
         {
-            String TypeFormat = (cboWineType.SelectedIndex + 1).ToString();
-            String TimeFormat = timePicker.Time.TotalMinutes.ToString() + "_" + ((int)cboDuration.SelectedIndex + 1).ToString();
-            wineFridge.WineSetup(TypeFormat, TimeFormat);
+            //String TypeFormat = (cboWineType.SelectedIndex + 1).ToString();
+            //String TimeFormat = timePicker.Time.TotalMinutes.ToString() + "_" + (((int)cboDuration.SelectedIndex + 1)*60).ToString();
+            //wineFridge.WineSetup(TypeFormat, TimeFormat);
+        }
+
+        private async void cboMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (wineFridge.isReady)
+            {
+                await wineFridge.SetSystemMode(cboMode.SelectedItem.ToString());
+            }
+        }
+
+        private async void btnTime_Click(object sender, RoutedEventArgs e)
+        {
+            if (wineFridge.isReady)
+            {
+                await wineFridge.SetSystemTimeZone(cboTime.SelectedIndex - 12);
+                txtTime.Text = new TimeSpan(0, wineFridge.clockMinutes, 0).ToString(@"hh\:mm");
+            }
+        }
+
+        private async void cboDuration_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (wineFridge.isReady)
+            {
+                String TimeFormat = timePicker.Time.TotalMinutes.ToString() + "_" + (((int)cboDuration.SelectedIndex + 1)*60).ToString();
+                await wineFridge.SetWineTime(TimeFormat);
+            }
+        }
+
+        private async void timePicker_TimeChanged(object sender, TimePickerValueChangedEventArgs e)
+        {
+            if (wineFridge.isReady)
+            {
+                String TimeFormat = timePicker.Time.TotalMinutes.ToString() + "_" + (((int)cboDuration.SelectedIndex + 1)*60).ToString();
+                await wineFridge.SetWineTime(TimeFormat);
+            }
+        }
+
+        private async void cboWineType_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (wineFridge.isReady)
+            {
+                String TypeFormat = (cboWineType.SelectedIndex + 1).ToString();
+                await wineFridge.SetWineType(TypeFormat);
+            }
         }
 
         #endregion
 
-        private void cboMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            wineFridge.SetSystemMode(cboMode.SelectedItem.ToString());
-        }
+
     }
 }

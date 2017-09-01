@@ -11,41 +11,57 @@ using Particle.SDK.Models;
 
 namespace WineCoolerUWP
 {
-    class WineManager
+    public class WineManager
     {
         //Private properties
         private ParticleDevice pd_WineController;
-        //private int serveMinutes;
-        private int systemMode;
         private string resourceName = "WineManager";
         private Exception uh_oh;
         private CoreDispatcher UIDispatcher;
 
         //Public properties
         public bool loginSuccess { get; private set; }
+        public bool isReady { get; private set; }
         public string loginUser { get; private set; }
         public string loginPass { get; private set; }
         public double temperature { get; private set; }
+        public int serveMinutes;
+        public int serveDuration;
+        public int wineType;
+        public int systemMode;
+        public int clockMinutes;
         public List<ParticleDevice> listParticleDevices { get; private set; }
-        /*
-         * ENUM
-         */
-        public String[] listWineTypes = new String[] { "Storage", "Champagne", "Riesling", "Chardonnay", "Pinot Noir", "Cabernet Franc", "Syrah" };
+        public string message { get; private set; }
+    /*
+     * ENUM
+     */
+    public String[] listWineTypes = new String[] {  "Storage",
+                                                        "Champagne, Sparkling Wine",
+                                                        "Pinot Gris, Riesling, Sauvignon Blanc",
+                                                        "Chardonnay, Viognier, White Bordeaux",
+                                                        "Pinot Noir",
+                                                        "Cabernet Franc",
+                                                        "Syrah, Zinfandel, Merlot, Malbec, Cabernet Sauvignon" };
         public int[] listServeDurations = new int[] { 1, 2, 3, 4 };
-        public String[] listModes = new String[] { "Schedule", "Store", "Serve" };
+        public String[] listModes = new String[] { "Schedule", "Store", "Serve", "Off" };
 
         //Events
         public event Action<double> WineTempEvent;
+        public event Action<int> ClockEvent;
         public event Action<bool> LoginChangeEvent;
         public event Action<List<ParticleDevice>> AvailableDevicesEvent;
         public event Action<Exception> ExceptionEvent;
         public event Action<bool> WineServeEvent;
         public event Action<int> SystemModeEvent;
         public event Action<string> DeviceChosenEvent;
+        public event Action<string> MessageEvent;
 
         //Constructor
         public WineManager(CoreDispatcher dis)
         {
+            isReady = false;
+            //message = "Welcome";
+            //MessageEvent(message);
             UIDispatcher = dis;
             //Login if possible (saved credentials
             var loginCreds = GetCredentialFromLocker();
@@ -56,19 +72,11 @@ namespace WineCoolerUWP
                 loginUser = loginCreds.UserName;
                 loginPass = loginCreds.Password;
             }
-        }
-
-        /// <summary>
-        /// Checks for the variable "WineTemp" attached to the WineManager's ParticleDevice and
-        /// assigns the temperature property.
-        /// Fires an event to let the UI know to read the new temperature
-        /// </summary>
-        /// <param name="timer"></param>
-        private async void ReadTempFromCloud(ThreadPoolTimer timer)
-        {
-            ParticleVariableResponse varResponse = await this.pd_WineController.GetVariableAsync("WineTemp");
-            temperature = (double)varResponse.Result;
-            WineTempEvent(temperature);
+            else
+            {
+                //message = "Please log in";
+                //MessageEvent(message);
+            }
         }
 
         /// <summary>
@@ -76,9 +84,40 @@ namespace WineCoolerUWP
         /// 
         /// </summary>
         /// <param name="pd"></param>
-        private void SetController(ParticleDevice pd)
+        private async Task SetController(ParticleDevice pd)
         {
             pd_WineController = pd;
+
+            MessageEvent("Updating parameters...");
+            //Get variables from the cloud
+            try
+            {
+                //message = "Updating settings from cloud...";
+                //MessageEvent(message);
+                ParticleVariableResponse varResponse = await this.pd_WineController.GetVariableAsync("WineTemp");
+                temperature = (double)varResponse.Result;
+
+                varResponse = await this.pd_WineController.GetVariableAsync("WineType");
+                wineType = (int)varResponse.Result;
+
+                varResponse = await this.pd_WineController.GetVariableAsync("SysMode");
+                systemMode = (int)varResponse.Result;
+
+                varResponse = await this.pd_WineController.GetVariableAsync("ClockMins");
+                clockMinutes = (int)varResponse.Result;
+
+                varResponse = await this.pd_WineController.GetVariableAsync("ServeMins");
+                serveMinutes = (int)varResponse.Result;
+
+                varResponse = await this.pd_WineController.GetVariableAsync("ServeDur");
+                serveDuration = (int)varResponse.Result;
+            }
+            catch
+            {
+
+            }
+
+
             //Listen to Particle events to notify user when wine is servalble
             Task<Guid> serveEventID = this.pd_WineController.SubscribeToDeviceEventsWithPrefixAsync(ServeHandler, "ServeReady");
 
@@ -87,8 +126,11 @@ namespace WineCoolerUWP
             ThreadPoolTimer PeriodicTimer = ThreadPoolTimer.CreatePeriodicTimer( async (source) =>
             {
                 ParticleVariableResponse varResponse = await this.pd_WineController.GetVariableAsync("WineTemp");
-
                 temperature = (double)varResponse.Result;
+
+                varResponse = await this.pd_WineController.GetVariableAsync("ClockMins");
+                clockMinutes = (int)varResponse.Result;
+
                 await UIDispatcher.RunAsync(CoreDispatcherPriority.High,
                     () =>
                     {
@@ -96,12 +138,16 @@ namespace WineCoolerUWP
                         // UI components can be accessed within this scope.
                         //
                         WineTempEvent(temperature);
+                        ClockEvent(clockMinutes);
                     });
             }
             , period);
 
             //Notify UI
             DeviceChosenEvent(pd.Name);
+            WineTempEvent(temperature);
+            MessageEvent("Welcome");
+            isReady = true;
         }
         
         /// <summary>
@@ -122,6 +168,8 @@ namespace WineCoolerUWP
         /// <param name="pass">Password of the user</param>
         public async void Login(string user, string pass)
         {
+            //message = "Logging in...";
+            //MessageEvent("Logging in...");
             try
             {
                 loginSuccess = await ParticleCloud.SharedCloud.LoginAsync(user, pass);
@@ -140,6 +188,10 @@ namespace WineCoolerUWP
                 passVault.Add(new PasswordCredential(resourceName, user, pass));
 
                 //Get device list from particle cloud
+                //message = "Getting devices...";
+                //MessageEvent(message);
+
+                MessageEvent("Getting devices...");
                 listParticleDevices = await ParticleCloud.SharedCloud.GetDevicesAsync();
 
                 //Tell the UI
@@ -153,7 +205,9 @@ namespace WineCoolerUWP
                     if (device.Name.IndexOf("wine", StringComparison.OrdinalIgnoreCase) >= 0 && !foundController)
                     {
                         foundController = true;
-                        this.SetController(device);
+                        //message = "Found " + device.Name;
+                        //MessageEvent(message);
+                        await this.SetController(device);
                     }
                 }
             }
@@ -165,7 +219,12 @@ namespace WineCoolerUWP
             LoginChangeEvent(loginSuccess);
         }
 
-        public async void WineSetup(string type, string time)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="time"></param>
+        public async Task WineSetup(string type, string time)
         {
             try
             {
@@ -190,11 +249,34 @@ namespace WineCoolerUWP
             }
         }
 
+        public async Task SetWineType(string type)
+        {
+            try
+            {
+                ParticleFunctionResponse functionResponseType = await pd_WineController.RunFunctionAsync("SetWineType", type);
+            }
+            catch
+            {
+
+            }
+        }
+
+        public async Task SetWineTime(string time)
+        {
+            try
+            {
+                ParticleFunctionResponse functionResponseType = await pd_WineController.RunFunctionAsync("SetWineTime", time);
+            }
+            catch
+            {
+
+            }
+        }
         /// <summary>
         /// 
         /// </summary>
         /// <param name="mode"></param>
-        public async void SetSystemMode(string mode)
+        public async Task SetSystemMode(string mode)
         {
             switch(mode)
             {
@@ -206,6 +288,9 @@ namespace WineCoolerUWP
                     break;
                 case "Serve":
                     systemMode = 2;
+                    break;
+                case "Off":
+                    systemMode = 3;
                     break;
                 default:
                     systemMode = 1;
@@ -221,6 +306,20 @@ namespace WineCoolerUWP
                 ExceptionEvent(uh_oh);
             }
             SystemModeEvent(systemMode);
+        }
+
+        public async Task SetSystemTimeZone(int zone)
+        {
+            try
+            {
+                ParticleFunctionResponse functionResponse = await pd_WineController.RunFunctionAsync("SetTimeZone", zone.ToString());
+                clockMinutes = (int)functionResponse.ReturnValue;
+            }
+            catch(Exception ex)
+            {
+                uh_oh = ex;
+                ExceptionEvent(uh_oh);
+            }
         }
 
         /// <summary>

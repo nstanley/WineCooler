@@ -8,7 +8,7 @@
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-        <Pivot Title="WineCooler">
+        <Pivot>
             <PivotItem Header="Fridge" x:Name="pvtFridge">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -23,19 +23,22 @@
                     </Grid.ColumnDefinitions>
                     <RelativePanel  Grid.Row="1" Grid.Column="1">
                         <!--dummy to eliminate relative align circular logic -->
-                        <Rectangle x:Name="rect" MinWidth="200" RelativePanel.AlignHorizontalCenterWithPanel="True"/>                        
-                        <TextBlock x:Name="lblMessage" Text="Welcome to WineCooler" RelativePanel.AlignTopWithPanel="True" Margin="0,0,0,0" RelativePanel.AlignHorizontalCenterWithPanel="True"/>
+                        <Rectangle x:Name="rect" MinWidth="250" RelativePanel.AlignHorizontalCenterWithPanel="True"/>
+                        <TextBlock x:Name="lblMessage" RelativePanel.AlignTopWithPanel="True" Margin="0,0,0,0" RelativePanel.AlignHorizontalCenterWithPanel="True"/>
                         <TextBlock x:Name="lblMode" Text="System Mode"  RelativePanel.Below="lblMessage" RelativePanel.AlignLeftWith="rect" Margin="0,20,0,5"/>
-                        <ComboBox x:Name="cboMode" RelativePanel.Below="lblMode" RelativePanel.AlignLeftWith="rect" MinWidth="200" SelectionChanged="cboMode_SelectionChanged"/>
+                        <ComboBox x:Name="cboMode" RelativePanel.Below="lblMode" RelativePanel.AlignLeftWith="rect" MinWidth="250" SelectionChanged="cboMode_SelectionChanged"/>
+                        
                         <TextBlock x:Name="lblServing" Text="Serving Time" RelativePanel.Below="cboMode" RelativePanel.AlignLeftWith="rect" Margin="0,20,0,5"/>
-                        <TimePicker x:Name="timePicker"  Time="17:30:0" RelativePanel.Below="lblServing" RelativePanel.AlignHorizontalCenterWithPanel="True" MinWidth="200" />
+                        <TimePicker x:Name="timePicker"  Time="17:30:0" RelativePanel.Below="lblServing" RelativePanel.AlignHorizontalCenterWithPanel="True" MinWidth="250" TimeChanged="timePicker_TimeChanged" />
                         <TextBlock x:Name="lblDuration" Text="Serving Duration" RelativePanel.AlignLeftWith="rect" RelativePanel.Below="timePicker" Margin="0,20,0,5"/>
-                        <ComboBox x:Name="cboDuration" RelativePanel.Below="lblDuration" RelativePanel.AlignLeftWith="rect" MinWidth="100"/>
-                        <TextBlock x:Name="lblHours" Text="hours" RelativePanel.RightOf="cboDuration" RelativePanel.Below="lblDuration"/>
+                        <ComboBox x:Name="cboDuration" RelativePanel.Below="lblDuration" RelativePanel.AlignLeftWith="rect" MinWidth="125" SelectionChanged="cboDuration_SelectionChanged"/>
+                        <TextBlock x:Name="lblHours" Text="hours" RelativePanel.RightOf="cboDuration" RelativePanel.Below="lblDuration" Margin="10,5"/>
                         <TextBlock x:Name="lblWineType" Text="Wine Type" RelativePanel.AlignLeftWith="rect" RelativePanel.Below="cboDuration" Margin="0,20,0,5"/>
-                        <ComboBox x:Name="cboWineType" RelativePanel.Below="lblWineType" RelativePanel.AlignLeftWith="rect" MinWidth="200"/>
-                        <Button x:Name="btnWineSetup" Content="Apply" MinWidth="75" Click="btnWineSetup_Click" RelativePanel.Below="cboWineType" Margin="0,20,0,5" RelativePanel.AlignHorizontalCenterWithPanel="True"/>
-                        <TextBlock x:Name="lblTemperature" Text="Temperature:" Margin="10,10,50,10" RelativePanel.Below="btnWineSetup" RelativePanel.AlignLeftWith="rect"/>
+                        <ComboBox x:Name="cboWineType" RelativePanel.Below="lblWineType" RelativePanel.AlignLeftWith="rect" MinWidth="250" MaxWidth="250" SelectionChanged="cboWineType_SelectionChanged"/>
+                        
+                        <Button x:Name="btnWineSetup" Visibility="Collapsed" Content="Apply" MinWidth="75" Click="btnWineSetup_Click" RelativePanel.Below="cboWineType" Margin="0,20,0,5" RelativePanel.AlignHorizontalCenterWithPanel="True"/>
+                        
+                        <TextBlock x:Name="lblTemperature" Text="Temperature:" Margin="0,20,0,5" RelativePanel.Below="btnWineSetup" RelativePanel.AlignLeftWith="rect"/>
                     </RelativePanel>
                 </Grid>
             </PivotItem>
@@ -63,6 +66,10 @@
                         <TextBlock x:Name="lblDevice" Margin="0,20,0,5" Text="Device"  RelativePanel.Below="btnLogin" RelativePanel.AlignLeftWith="rect1"/>
                         <ComboBox x:Name="cboDevice" MinWidth="250" RelativePanel.AlignHorizontalCenterWithPanel="True" RelativePanel.Below="lblDevice"/>
                         <Button x:Name="btnDevice" Content="Set" Click="btnDevice_Click" MinWidth="75"  Margin="0,20,0,5" RelativePanel.AlignHorizontalCenterWithPanel="True" RelativePanel.Below="cboDevice"/>
+                        <TextBlock x:Name="txtTimeZone" Margin="0,20,0,5" Text="Time Zone" RelativePanel.Below="btnDevice" RelativePanel.AlignLeftWith="rect1"/>
+                        <TextBlock x:Name="txtTime" Margin="0,20,0,5" Text="00:00" RelativePanel.Below="btnDevice" RelativePanel.AlignRightWith="rect1"/>
+                        <ComboBox x:Name="cboTime" MinWidth="250" RelativePanel.AlignHorizontalCenterWithPanel="True" RelativePanel.Below="txtTime"/>
+                        <Button x:Name="btnTime" Content="Set" Click="btnTime_Click" MinWidth="75"  Margin="0,20,0,5" RelativePanel.AlignHorizontalCenterWithPanel="True" RelativePanel.Below="cboTime"/>
                     </RelativePanel>
                 </Grid>
             </PivotItem>
