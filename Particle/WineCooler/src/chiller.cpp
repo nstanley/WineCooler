@@ -36,18 +36,20 @@ double WineChiller::Update()
     if(systemOn)
     {
         //Make sure Peltier is on
-        digitalWrite(pin_peltier, HIGH);
+        //digitalWrite(pin_peltier, HIGH);
         //Turn off chiller once we've gone under low threshold
         //It's too cold!
         if(wine_temp < sp_low)
         {
             digitalWrite(pin_fan_circulate, LOW);
+            digitalWrite(pin_peltier, LOW);
         }
         //Turn on chiller once we've gone above high threshold
         //It's too hot!
         if(wine_temp > sp_high)
         {
             digitalWrite(pin_fan_circulate, HIGH);
+            digitalWrite(pin_peltier, HIGH);
         }
     }
     else

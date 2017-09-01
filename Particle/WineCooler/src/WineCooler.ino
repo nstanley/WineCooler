@@ -14,11 +14,11 @@
 #define PIN_STATUS_SERVE    D1   //LED status of ready-to-serve
 
 //Constants
-#define TIME_CHECK_IN   120000  //Let the chiller run 2 mins
+#define TIME_CHECK_IN    30000  //Chiller cycle
 #define SYSMODE_SCHEDULE     0  //Check time and prepare wine for serving temperature
 #define SYSMODE_STORE        1  //Store wine at 55F
 #define SYSMODE_SERVE        2  //Serve wine at specified temps per wine
-#define SYSMODE_OFF          4  //Turn chiller off
+#define SYSMODE_OFF          3  //Turn chiller off
 
 /*
  * Lower and upper temperature thresholds in Centigrade
@@ -32,10 +32,10 @@
  * Index 5 = Cab Franc
  * Index 6 = Syrah, Zinfandel, Merlot, Malbec, Cab Sauv
  */
-//                           0  1   2   3   4   5   6
-const int LoThreshDegC[] = {12, 7,  7,  9, 13, 15, 16};
-const int HiThreshDegC[] = {13, 8, 10, 11, 16, 16, 18};
-const int PrepTimeMins[] = {0, 30, 30, 30, 30, 30, 30};
+//                                0    1    2   3     4     5     6
+const double LoThreshDegC[] = {11.8, 6.2, 7.2,  9, 12.8, 14.6, 15.6};
+const double HiThreshDegC[] = {13.8, 8.2,  10, 11, 15.6, 16.6, 18.3};
+const int PrepTimeMins[]    = {   0,  30,  30, 30,   30,   30,   30};
 int setpointIndex = 0;  //Index for running type - Serve (0) or WineType
 int WineType = 4;       //Index for threshold temperatures, per chart above (1-6)
 double WineTemp;        //Current temperature, as read by TMP36
@@ -71,13 +71,13 @@ int SetWineType(String type)
 /*
  * SetSysMode()
  * Cloud function to update the chiller's running mode
- * Value contrained from 0 to 4
+ * Value contrained from 0 to 3
  *
  * Returns integer for which zone
  */
 int SetSysMode(String args)
 {
-  sysMode = constrain(args.toInt(), 0, 4);
+  sysMode = constrain(args.toInt(), 0, 3);
   return sysMode;
 }
 
